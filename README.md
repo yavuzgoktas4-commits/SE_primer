@@ -2,8 +2,8 @@
 
 ## 🔗 Teslim Linkleri
 - **GitHub Repo Linki:** https://github.com/yavuzgoktas4-commits/SE_primer.git
-- **Google AI Studio Canlı Uygulama Linki:** `[AI Studio URL]`
-- **Cypress Demo Video Linki (60 sn):** `[Video URL]`
+- **Google AI Studio Canlı Uygulama Linki:** https://se-primer-software-engineering-crisis-simulation.ai.studio
+- **Cypress Demo Video Linki (60 sn):** https://youtu.be/fA_8KfO7iN4
 
 ---
 
