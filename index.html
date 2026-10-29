@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SE Primer — 08:00 Kriz Simülasyonu (YZM301)</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Üst Kriz Durum Çubuğu -->
+  <header class="crisis-header" id="crisis-header">
+    <div class="header-left">
+      <span class="live-badge" id="live-badge">
+        <span class="pulse-dot"></span> CANLI KRİZ
+      </span>
+      <span class="crisis-clock" id="crisis-clock" data-cy="crisis-clock">08:00</span>
+      <span class="crisis-patients" id="crisis-patients" data-cy="crisis-patients">300 hasta bekliyor</span>
+    </div>
+    <div class="header-right">
+      <div class="mode-badge hidden" id="hint-mode-badge" data-cy="hint-mode-badge">
+        💡 Teknik İpuçları: AÇIK
+      </div>
+      <div class="timer-badge hidden" id="timer-badge" data-cy="timer-badge">
+        ⏱️ Kalan Süre: <strong id="countdown-value" data-cy="countdown-value">60</strong> sn
+      </div>
+    </div>
+  </header>
+
+  <main class="app-container">
+    <!-- Sol / Ana Sütun: Kriz Oyunu Akışı -->
+    <section class="simulation-column">
+      <!-- Başlangıç Kriz Özeti Banner -->
+      <div class="incident-banner" id="incident-banner" data-cy="incident-banner">
+        <div class="incident-code">INC-2026-0800 · CRITICAL HTTP 502</div>
+        <h1>08:00 randevu sistemi çöktü, 300 hasta bekliyor.</h1>
+        <p>
+          Sabah poliklinik girişleri başladı ancak Merkezi Randevu Servisi yanıt vermiyor.
+          Krizi yönetmek için profilini belirle ve 3 kritik mühendislik kararını ver.
+        </p>
+      </div>
+
+      <!-- 1. GİRİŞ EKRANI (3 Girdi) -->
+      <section class="card onboarding-card" id="onboarding-section" data-cy="onboarding-section">
+        <div class="card-header">
+          <span class="step-tag">Adım 0 · Hazırlık</span>
+          <h2>Mühendis Profili ve Kriz Hedefi</h2>
+        </div>
+
+        <form id="onboarding-form" class="onboarding-form" onsubmit="return false;">
+          <!-- Girdi 1: Seviye -->
+          <div class="form-group">
+            <label for="level-select">1. Seviye Seçimi</label>
+            <select id="level-select" data-cy="level-select" required>
+              <option value="Yeni">Yeni Başladım</option>
+              <option value="Deneyimli">Deneyimliyim</option>
+            </select>
+            <small class="field-help" id="level-help">
+              "Yeni Başladım" seçilirse ekranda teknik ipuçları açık olur. "Deneyimliyim" seçilirse 60 saniyelik sayaç başlar.
+            </small>
+          </div>
+
+          <!-- Girdi 2: Rol -->
+          <div class="form-group">
+            <label for="role-select">2. Rol Seçimi</label>
+            <select id="role-select" data-cy="role-select" required>
+              <option value="Backend">Backend</option>
+              <option value="Frontend">Frontend</option>
+              <option value="Fullstack">Fullstack</option>
+            </select>
+          </div>
+
+          <!-- Girdi 3: Hedef -->
+          <div class="form-group">
+            <label for="goal-select">3. Kriz Hedefi</label>
+            <select id="goal-select" data-cy="goal-select" required>
+              <option value="Hızlı kurtarma">Hızlı Çözüm</option>
+              <option value="Sıfır veri kaybı">Sıfır veri kaybı</option>
+            </select>
+          </div>
+
+          <button type="button" id="start-game-btn" data-cy="start-game-btn" class="btn-primary">
+            Krize Müdahale Et (Simülasyonu Başlat)
+          </button>
+        </form>
+      </section>
+
+      <!-- Aktif Oyuncu Profil Özeti (Oyun başlayınca görünür) -->
+      <div class="profile-summary-bar hidden" id="profile-summary-bar" data-cy="profile-summary-bar">
+        <span>👤 Seviye: <strong id="summary-level">-</strong></span>
+        <span>🛠️ Rol: <strong id="summary-role">-</strong></span>
+        <span>🎯 Hedef: <strong id="summary-goal">-</strong></span>
+      </div>
+
+      <!-- OYUN KARAR AŞAMALARI -->
+      <div id="decisions-container" class="decisions-container hidden" data-cy="decisions-container">
+
+        <!-- KARAR 1: MİMARİ -->
+        <article class="card decision-card" id="decision-1-card" data-cy="decision-1-card">
+          <div class="card-header">
+            <span class="step-tag">Karar 1 / 3 · Mimari (Saat 08:05)</span>
+            <h2>Mimari Müdahale: Çöken Randevu Servisini Nasıl Kurtaracaksın?</h2>
+          </div>
+
+          <div class="terminal-box">
+            <code>[08:05:14] ERROR AppointmentController - NullPointerException on v2.4.0 release</code>
+            <code>[08:05:15] WARN  QueueMonitor - 300 hasta sırada bekliyor, bağlantı zaman aşımı!</code>
+          </div>
+
+          <!-- Yeni Başlayanlar İçin Teknik İpucu -->
+          <div class="technical-hint hidden" id="hint-1" data-cy="technical-hint-1">
+            <strong>💡 Teknik İpucu (Mimari):</strong> Üretim ortamında (production) kriz anında yapılan canlı yamalar (hotfix) test edilmediği için yeni hatalar doğurabilir. Bilinen son kararlı sürüme dönmek (rollback) genellikle sistemi en güvenli şekilde ayağa kaldırır.
+          </div>
+
+          <div class="options-grid">
+            <button
+              type="button"
+              class="option-btn"
+              id="d1-option-a"
+              data-cy="d1-option-a"
+              data-decision="1"
+              data-choice="A"
+            >
+              <span class="option-key">A</span>
+              <span class="option-text">A) Eski sürüme geri dön</span>
+            </button>
+
+            <button
+              type="button"
+              class="option-btn"
+              id="d1-option-b"
+              data-cy="d1-option-b"
+              data-decision="1"
+              data-choice="B"
+            >
+              <span class="option-key">B</span>
+              <span class="option-text">B) Canlıda yama yap</span>
+            </button>
+          </div>
+
+          <!-- Karar 1 Teknik Açıklama ("Ne oldu?" ve "Neden oldu?") -->
+          <div class="feedback-box hidden" id="feedback-1" data-cy="feedback-1">
+            <div class="feedback-item">
+              <h4>📌 Ne oldu?</h4>
+              <p id="feedback-1-what" data-cy="feedback-1-what"></p>
+            </div>
+            <div class="feedback-item">
+              <h4>🔍 Neden oldu?</h4>
+              <p id="feedback-1-why" data-cy="feedback-1-why"></p>
+            </div>
+          </div>
+        </article>
+
+        <!-- KARAR 2: TEST -->
+        <article class="card decision-card hidden" id="decision-2-card" data-cy="decision-2-card">
+          <div class="card-header">
+            <span class="step-tag">Karar 2 / 3 · Test Süreci (Saat 08:12)</span>
+            <h2>Test Kararı: Hazırlanan Paketi Canlıya Almadan Önce Ne Yapacaksın?</h2>
+          </div>
+
+          <div class="terminal-box">
+            <code>[08:12:03] INFO  DeploymentPipeline - Paket hazır. Smoke test süresi: ~3 dakika.</code>
+            <code>[08:12:05] ALERT CallCenter - Bankolarda yoğunluk artıyor, acil çözüm bekleniyor!</code>
+          </div>
+
+          <!-- Yeni Başlayanlar İçin Teknik İpucu -->
+          <div class="technical-hint hidden" id="hint-2" data-cy="technical-hint-2">
+            <strong>💡 Teknik İpucu (Test):</strong> Kısa bir duman testi (smoke test), veritabanı bağlantısı ve temel randevu oluşturma akışının çalışıp çalışmadığını saniyeler içinde doğrular; doğrulanmamış dağıtımlar ikinci bir çöküşe yol açabilir.
+          </div>
+
+          <div class="options-grid">
+            <button
+              type="button"
+              class="option-btn"
+              id="d2-option-a"
+              data-cy="d2-option-a"
+              data-decision="2"
+              data-choice="A"
+            >
+              <span class="option-key">A</span>
+              <span class="option-text">A) Önce kısa test koş</span>
+            </button>
+
+            <button
+              type="button"
+              class="option-btn"
+              id="d2-option-b"
+              data-cy="d2-option-b"
+              data-decision="2"
+              data-choice="B"
+            >
+              <span class="option-key">B</span>
+              <span class="option-text">B) Hemen yayına al</span>
+            </button>
+          </div>
+
+          <!-- Karar 2 Teknik Açıklama ("Ne oldu?" ve "Neden oldu?") -->
+          <div class="feedback-box hidden" id="feedback-2" data-cy="feedback-2">
+            <div class="feedback-item">
+              <h4>📌 Ne oldu?</h4>
+              <p id="feedback-2-what" data-cy="feedback-2-what"></p>
+            </div>
+            <div class="feedback-item">
+              <h4>🔍 Neden oldu?</h4>
+              <p id="feedback-2-why" data-cy="feedback-2-why"></p>
+            </div>
+          </div>
+        </article>
+
+        <!-- KARAR 3: KVKK -->
+        <article class="card decision-card hidden" id="decision-3-card" data-cy="decision-3-card">
+          <div class="card-header">
+            <span class="step-tag">Karar 3 / 3 · KVKK ve Veri Gizliliği (Saat 08:20)</span>
+            <h2>KVKK Kararı: Logda Hasta Adı Var, Ekiple Nasıl Paylaşacaksın?</h2>
+          </div>
+
+          <div class="terminal-box">
+            <code>[08:20:10]DUMP  PatientRecord - { "hastaAdi": "Ayşe Yılmaz", "tcNo": "10928374650", "poliklinik": "Kardiyoloji", "err": "TIMEOUT" }</code>
+            <code>[08:20:12] INFO  SlackChannel - Ekip #genel-kriz kanalında hata logunu bekliyor.</code>
+          </div>
+
+          <!-- Yeni Başlayanlar İçin Teknik İpucu -->
+          <div class="technical-hint hidden" id="hint-3" data-cy="technical-hint-3">
+            <strong>💡 Teknik İpucu (KVKK):</strong> 6698 sayılı KVKK kapsamında hasta adı ve T.C. kimlik numarası kişisel/özel nitelikli veridir. Hata ayıklama (debugging) için bu alanlar maskelenerek (`***`) paylaşılmalıdır.
+          </div>
+
+          <div class="options-grid">
+            <button
+              type="button"
+              class="option-btn"
+              id="d3-option-a"
+              data-cy="d3-option-a"
+              data-decision="3"
+              data-choice="A"
+            >
+              <span class="option-key">A</span>
+              <span class="option-text">A) Maskele</span>
+            </button>
+
+            <button
+              type="button"
+              class="option-btn"
+              id="d3-option-b"
+              data-cy="d3-option-b"
+              data-decision="3"
+              data-choice="B"
+            >
+              <span class="option-key">B</span>
+              <span class="option-text">B) Ekibe olduğu gibi at</span>
+            </button>
+          </div>
+
+          <!-- Karar 3 Teknik Açıklama ("Ne oldu?" ve "Neden oldu?") -->
+          <div class="feedback-box hidden" id="feedback-3" data-cy="feedback-3">
+            <div class="feedback-item">
+              <h4>📌 Ne oldu?</h4>
+              <p id="feedback-3-what" data-cy="feedback-3-what"></p>
+            </div>
+            <div class="feedback-item">
+              <h4>🔍 Neden oldu?</h4>
+              <p id="feedback-3-why" data-cy="feedback-3-why"></p>
+            </div>
+          </div>
+        </article>
+
+        <!-- SONUÇ EKRANI (Son A veya Son B) -->
+        <section class="card result-card hidden" id="result-card" data-cy="result-card">
+          <div class="result-badge" id="result-badge">SONUÇ RAPORU</div>
+          <h2 id="result-title" data-cy="result-title"></h2>
+          <p id="result-description" data-cy="result-description"></p>
+
+          <div class="result-summary" id="result-summary" data-cy="result-summary"></div>
+
+          <button type="button" id="restart-btn" data-cy="restart-btn" class="btn-secondary">
+            Simülasyonu Yeniden Başlat
+          </button>
+        </section>
+      </div>
+    </section>
+
+    <!-- Sağ / Alt Sütun: Sokratik AI Tutor Bölümü -->
+    <aside class="tutor-column">
+      <section class="card tutor-card" id="ai-tutor-section" data-cy="ai-tutor-section">
+        <div class="card-header">
+          <span class="step-tag tutor-tag">🤖 Sokratik Rehber · No-Leak Korumalı</span>
+          <h2>AI Tutor (Sokratik Mentor)</h2>
+          <p class="tutor-subtitle">
+            Doğrudan doğru şıkkı söylemez; kriz kararlarını kendin bulman için yönlendirici sorular sorar.
+          </p>
+        </div>
+
+        <div class="quick-prompts">
+          <button type="button" class="chip-btn" data-prompt="Hangisini seçeyim? Doğru cevap A mı B mi?">
+            "Hangisini seçeyim?"
+          </button>
+          <button type="button" class="chip-btn" data-prompt="Eski sürüme dönmek mi canlıda yama mı?">
+            "Rollback vs Canlı Yama?"
+          </button>
+          <button type="button" class="chip-btn" data-prompt="Logda hasta adı var, KVKK için ne yapmalıyım?">
+            "KVKK ve log maskeleme?"
+          </button>
+        </div>
+
+        <div class="chat-messages" id="chat-messages" data-cy="chat-messages">
+          <div class="chat-bubble tutor-bubble">
+            <strong>AI Tutor:</strong> Merhaba! Saat 08:00 ve 300 hasta randevu sisteminin açılmasını bekliyor. Karar aşamalarında takılırsan bana sorabilirsin. Unutma, sana doğrudan A veya B şıkkını söylemem; birlikte mühendislik muhakemesi yapacağız!
+          </div>
+        </div>
+
+        <form id="tutor-form" class="tutor-form" onsubmit="return false;">
+          <input
+            type="text"
+            id="tutor-input"
+            data-cy="tutor-input"
+            placeholder="Örn: Hangisini seçeyim? Doğru şık hangisi?"
+            autocomplete="off"
+          />
+          <button type="submit" id="tutor-send-btn" data-cy="tutor-send-btn" class="btn-primary">
+            Sor
+          </button>
+        </form>
+      </section>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

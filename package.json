@@ -1,0 +1,25 @@
+{
+  "name": "se-primer-yzm301",
+  "version": "1.0.0",
+  "description": "YZM301 Yazılım Mühendisliği Kriz Simülasyonu - SE Primer",
+  "main": "app.js",
+  "scripts": {
+    "test": "cypress run",
+    "test:e2e": "cypress run --config video=true",
+    "cypress:open": "cypress open",
+    "sync:assets": "node scripts/sync_stitch_assets.js"
+  },
+  "keywords": [
+    "software-engineering",
+    "yzm301",
+    "se-primer",
+    "crisis-simulation",
+    "kvkk",
+    "cypress"
+  ],
+  "author": "YZM301",
+  "license": "MIT",
+  "devDependencies": {
+    "cypress": "^13.15.0"
+  }
+}
