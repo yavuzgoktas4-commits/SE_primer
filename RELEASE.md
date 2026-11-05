@@ -13,7 +13,7 @@ Bu doküman, **The Primer v2: Bilişsel Yük ve Kriz Riski Tahmin Modeli**'nin s
 - **Artefakt Boyutu:** `437 bytes` (Ultra hafif, sıfır gecikmeli WebAssembly çıkarımı)
 - **Hugging Face Model URL'si (Commit'e Sabitlenmiş Kalıcı Bağlantı):**
   ```text
-  https://huggingface.co/yavuzgoktas4-commits/se-primer-risk-model/resolve/9f8c2b1a7d4e5f60a1b2c3d4e5f6a7b8c9d0e1f2/model.onnx
+  https://huggingface.co/Yavuz111/se-primer-risk-model/resolve/007fd8bd3d0c9c8366effb2cd346b72c17ffc929/model.onnx
   ```
   *(Not: Üretim ortamında model dosyasının yanlışlıkla veya kontrolsüz güncellenmesini önlemek için doğrudan commit SHA hash'ine sabitlenmiş değişmez [immutable] URL formatı kullanılmıştır.)*
 
