@@ -2,6 +2,7 @@
 
 ## 🔗 Teslim Linkleri
 - **GitHub Repo Linki:** https://github.com/yavuzgoktas4-commits/SE_primer.git
+- **Canlı GitHub Pages Linki:** https://yavuzgoktas4-commits.github.io/SE_primer/
 - **Hugging Face Model Linki (Commit Hash'e Sabitlenmiş):** https://huggingface.co/yavuzgoktas4-commits/se-primer-risk-model/resolve/9f8c2b1a7d4e5f60a1b2c3d4e5f6a7b8c9d0e1f2/model.onnx
 - **Google AI Studio Canlı Web Uygulama Linki:** https://se-primer-software-engineering-crisis-simulation.ai.studio
 - **Cypress Demo Video Linki (60 sn):** https://youtu.be/fA_8KfO7iN4
