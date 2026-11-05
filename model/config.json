@@ -1,0 +1,76 @@
+{
+  "model_name": "The Primer v2 - Bilisel Yuk ve Kriz Riski Tahmin Modeli",
+  "version": "2.0.0",
+  "framework": "scikit-learn (LogisticRegression)",
+  "runtime": "onnxruntime-web (WebAssembly)",
+  "created_at": "2026-11-05T21:37:28.296699+00:00",
+  "random_state": 42,
+  "decision_threshold": 0.6,
+  "input_tensor_name": "float_input",
+  "features": [
+    {
+      "name": "karar_suresi_sn",
+      "type": "float",
+      "unit": "saniye",
+      "min": 1.0,
+      "max": 65.0
+    },
+    {
+      "name": "secim_degistirme_sayisi",
+      "type": "int",
+      "unit": "adet",
+      "min": 0,
+      "max": 6
+    },
+    {
+      "name": "tutor_soru_sayisi",
+      "type": "int",
+      "unit": "adet",
+      "min": 0,
+      "max": 5
+    },
+    {
+      "name": "sahne_no",
+      "type": "int",
+      "unit": "kategori",
+      "min": 1,
+      "max": 3
+    },
+    {
+      "name": "deneyim_seviyesi",
+      "type": "int",
+      "unit": "binary",
+      "min": 0,
+      "max": 1
+    }
+  ],
+  "target": {
+    "name": "riskli_karar",
+    "type": "int",
+    "classes": [
+      {
+        "value": 0,
+        "label": "Dusuk Risk (Sakin / Bilincli)"
+      },
+      {
+        "value": 1,
+        "label": "Yuksek Kriz / Panik Riski"
+      }
+    ]
+  },
+  "evaluation_gate": {
+    "accuracy_threshold": 0.75,
+    "f1_threshold": 0.7,
+    "parity_diff_tolerance": 0.0001,
+    "status": "PASSED"
+  },
+  "metrics": {
+    "accuracy": 1.0,
+    "f1_score": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "max_parity_diff": 6.33107449798942e-08,
+    "train_samples": 48,
+    "test_samples": 12
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "model": "model/model.onnx",
+  "tolerance": 0.0001,
+  "reference_inputs": [
+    {
+      "id": 1,
+      "name": "Sakin Yeni Baslayan (Dusuk Risk)",
+      "features": [
+        14.5,
+        0,
+        1,
+        1,
+        0
+      ],
+      "python_p": 0.02117741107940674,
+      "python_p0": 0.9788225889205933,
+      "predicted_class": 0
+    },
+    {
+      "id": 2,
+      "name": "Kararli Deneyimli (Dusuk Risk)",
+      "features": [
+        8.0,
+        0,
+        0,
+        2,
+        1
+      ],
+      "python_p": 0.02273935079574585,
+      "python_p0": 0.9772606492042542,
+      "predicted_class": 0
+    },
+    {
+      "id": 3,
+      "name": "Sure Baskisiyla Panikleyen (Yuksek Risk)",
+      "features": [
+        55.0,
+        3,
+        2,
+        1,
+        1
+      ],
+      "python_p": 0.9723689556121826,
+      "python_p0": 0.02763107419013977,
+      "predicted_class": 1
+    },
+    {
+      "id": 4,
+      "name": "Durtusel ve Kararsiz (Yuksek Risk)",
+      "features": [
+        2.5,
+        2,
+        0,
+        2,
+        1
+      ],
+      "python_p": 0.775904655456543,
+      "python_p0": 0.22409534454345703,
+      "predicted_class": 1
+    },
+    {
+      "id": 5,
+      "name": "KVKK Asamasinda Coklu Tiklama (Yuksek Risk)",
+      "features": [
+        52.0,
+        4,
+        3,
+        3,
+        1
+      ],
+      "python_p": 0.9988651871681213,
+      "python_p0": 0.0011348128318786621,
+      "predicted_class": 1
+    }
+  ]
+}

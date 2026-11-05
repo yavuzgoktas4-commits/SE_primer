@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SE Primer — 08:00 Kriz Simülasyonu (YZM301)</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
 </head>
 <body>
   <!-- Üst Kriz Durum Çubuğu -->
@@ -93,6 +94,27 @@
 
       <!-- OYUN KARAR AŞAMALARI -->
       <div id="decisions-container" class="decisions-container hidden" data-cy="decisions-container">
+
+        <!-- The Primer v2: Bilişsel Yük ve ML Telemetri Paneli -->
+        <div class="telemetry-panel" id="telemetry-panel" data-cy="telemetry-panel">
+          <div class="telemetry-metrics">
+            <div class="telemetry-item">
+              <span class="telemetry-label">⏱️ Karar Süresi:</span>
+              <span class="telemetry-value" id="decision-duration" data-cy="decision-duration">0.0</span> sn
+            </div>
+            <div class="telemetry-item">
+              <span class="telemetry-label">🔄 Seçim Değiştirme:</span>
+              <span class="telemetry-value" id="decision-toggles" data-cy="decision-toggles">0</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="telemetry-label">🤖 ML Risk Olasılığı:</span>
+              <span class="telemetry-badge" id="telemetry-p-badge" data-cy="p">0.000000</span>
+            </div>
+          </div>
+          <div class="telemetry-risk-alert hidden" id="telemetry-risk-badge" data-cy="telemetry-risk-badge">
+            ⚠️ Telemetry: Yüksek Bilişsel Yük / Kriz Riski
+          </div>
+        </div>
 
         <!-- KARAR 1: MİMARİ -->
         <article class="card decision-card" id="decision-1-card" data-cy="decision-1-card">

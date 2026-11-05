@@ -24,7 +24,7 @@ Feature: Kriz Simülasyonu Başlangıç Yapılandırması
 
   Scenario: Yeni başlayan kullanıcı için teknik ipuçlarının aktif edilmesi
     Given kullanıcı SE Primer giriş ekranındadır
-    When seviye olarak "Yeni başladım", rol olarak "Backend" ve hedef olarak "Sıfır veri kaybı" seçer
+    When seviye olarak "Yeni Başladım", rol olarak "Backend" ve hedef olarak "Sıfır veri kaybı" seçer
     And "Krize Müdahale Et" butonuna tıklar
     Then kriz sahnesi (08:00 randevu sistemi çöktü, 300 hasta bekliyor) ekrana gelir
     And ekranda karar aşamalarına yardımcı "Teknik İpucu" kutusu görünür olur
@@ -82,26 +82,106 @@ Feature: Sokratik AI Tutor Rehberliği
     And AI Tutor öğrenciyi düşündürmeye yönelik Sokratik bir soru ile yanıt verir
 ```
 
+### Kriter 6 (AC6): Yüksek Bilişsel Yük / Kriz Riski Algılandığında Proaktif Sokratik Müdahale
+```gherkin
+Feature: Bilişsel Yük ve Kriz Riski Algılama (v2 Telemetri)
+
+  Scenario: Model çıkarımında risk olasılığı p >= 0.60 olduğunda proaktif rehberliğin tetiklenmesi
+    Given öğrenci bir kriz karar aşamasındadır
+    When telemetri verilerine göre model çıkarım olasılığı p >= 0.60 olarak hesaplanır
+    Then arayüzde "Telemetry: Yüksek Risk / Bilişsel Yük" uyarı rozeti görünür olur
+    And Sokratik AI Tutor öğrencinin soru sormasını beklemeden proaktif yönlendirici bir soru ile sohbeti başlatır
+```
+
+### Kriter 7 (AC7): Python Oracle ile Web ONNX Runtime Eşliği (Parite)
+```gherkin
+Feature: Model Çıkarım Paritesi (Oracle vs Client ONNX Runtime)
+
+  Scenario: Python Oracle referans çıktısı ile tarayıcı ONNX Runtime çıkarım farkının tolerans altında kalması
+    Given Python Oracle (parite.py) referans girdi vektörleri ve çıktı olasılıkları mevcuttur
+    When aynı girdi vektörleri web ortamındaki ONNX Runtime (WebAssembly) modeline verilir
+    Then referans çıktı ile web çıkarım çıktısı arasındaki mutlak fark 1e-4 hata toleransından küçük olmalıdır (|p_oracle - p_web| < 0.0001)
+```
+
+### Kriter 8 (AC8): Regresyon Koruma Garantisi
+```gherkin
+Feature: Model Entegrasyonu Sonrası Geriye Dönük Uyumluluk
+
+  Scenario: v2 makine öğrenmesi katmanı eklendikten sonra mevcut E2E testlerinin yeşil kalması
+    Given The Primer v2 istemci modeli ve telemetri motoru entegre edilmiştir
+    When Cypress E2E test paketi (npm run test:e2e) koşturulur
+    Then v1'deki tüm test senaryoları (Son A ve Son B akışları) hiçbir kırılma olmadan başarıyla (yeşil) tamamlanır
+```
+
 ---
 
-## 4. Sistem Akış Şeması (Mermaid)
+## 4. The Primer v2: Uyarlamalı ML Modeli Katmanı
+
+### 4.1. Özgün Senaryo: "Bilişsel Yük ve Kriz Riski Tahmini"
+The Primer v2, kriz yönetimi pedagojisini bir üst seviyeye taşımak amacıyla **Makine Öğrenmesi Yaşam Döngüsü (MLOps)** katmanını sisteme entegre eder.
+
+Bu senaryoda sistem, öğrencinin karar anındaki davranışsal telemetrisini (kararsızlık, zaman baskısı altındaki tıklama frekansı, Sokratik rehbere danışma sıklığı) arka planda gerçek zamanlı olarak izler. Amaç, öğrenci henüz hatalı bir mühendislik kararı (canlıda hotfix veya açık veri paylaşımı) vermeden önce **yüksek bilişsel yük ve panik durumunu** tespit etmek ve Sokratik AI Tutor'un proaktif olarak devreye girmesini sağlamaktır.
+
+### 4.2. Model Girdileri ve Hedef Değişkeni
+
+| Değişken Adı | Veri Tipi | Rol | Değer Aralığı / Açıklama |
+| :--- | :---: | :---: | :--- |
+| `karar_suresi_sn` | `float` | Girdi (Feature) | Sahne açılışından itibaren geçen saniye cinsinden süre (`1.0` - `65.0`). |
+| `secim_degistirme_sayisi` | `int` | Girdi (Feature) | Öğrencinin A ve B şıkları arasında yaptığı tıklama / değiştirme adedi (`0` - `6`). |
+| `tutor_soru_sayisi` | `int` | Girdi (Feature) | Mevcut sahne sırasında Sokratik AI Tutor'a yöneltilen soru sayısı (`0` - `5`). |
+| `sahne_no` | `int` | Girdi (Feature) | Aktif kriz sahnesi (`1`: Mimari, `2`: Test, `3`: KVKK). |
+| `deneyim_seviyesi` | `int` | Girdi (Feature) | Öğrenci profili (`0`: Yeni Başladım, `1`: Deneyimliyim). |
+| `riskli_karar` | `int` | **Hedef (Target)** | **0**: Düşük Risk (Sakin/Bilinçli), **1**: Yüksek Kriz / Panik Riski. |
+
+### 4.3. Model Mimarisi ve İstemci Tarafı ONNX Dağıtımı
+- **Mimari:** Tabular telemetri verisi üzerinde eğitilmiş hafif ve yorumlanabilir `LogisticRegression` veya `DecisionTreeClassifier` (Scikit-learn tabanlı).
+- **Dağıtım Formatı:** Model, Python eğitim ortamından açık standartlı **ONNX** formatına dönüştürülür.
+- **İstemci Çalışma Zamanı (Edge Inference):** İstemci tarafında sunucu bağımlılığı ve ağ gecikmesi olmadan `onnxruntime-web` (WebAssembly) üzerinden yerel olarak çalıştırılır. Bu sayede sıfır ağ gecikmesiyle her tıklamada gerçek zamanlı çıkarım yapılır.
+
+### 4.4. Altın Standart ve Kabul Eşiği (Eval Gate)
+Modelin üretime alınabilmesi ve paketlenebilmesi için bağımsız test seti üzerinde aşağıdaki performans eşiklerini sağlaması zorunludur:
+- **Accuracy (Doğruluk):** $\ge 0.75$ (%75)
+- **F1-Score:** $\ge 0.70$ (%70)
+
+> [!CAUTION]
+> Test seti üzerinde **Accuracy < 0.75** veya **F1-Score < 0.70** olan hiçbir model artifact'ı CI/CD hattından geçemez, ONNX formatına paketlenemez ve istemciye yayınlanamaz (Strict Eval Gate).
+
+---
+
+## 5. Sistem Akış Şeması (Mermaid)
 
 ```mermaid
 flowchart TD
     Start(["Başlangıç: 08:00 Randevu Sistemi Çöktü<br/>(300 Hasta Bekliyor)"]) --> Onboarding["Giriş Ekranı: 3 Girdi Al<br/>1. Seviye: Yeni / Deneyimli<br/>2. Rol: Frontend / Backend / Fullstack<br/>3. Hedef: Hızlı kurtarma / Sıfır veri kaybı"]
 
     Onboarding --> ModeCheck{"Seviye Seçimi Nedir?"}
-    ModeCheck -- "Yeni başladım" --> HintsOn["Teknik İpuçları AÇIK"]
+    ModeCheck -- "Yeni Başladım" --> HintsOn["Teknik İpuçları AÇIK"]
     ModeCheck -- "Deneyimliyim" --> TimerOn["60 Saniye Geri Sayım Sayacı BAŞLAR"]
 
     HintsOn --> D1["Karar 1 (Mimari)<br/>A) Eski sürüme geri dön<br/>B) Canlıda yama yap"]
     TimerOn --> D1
 
+    subgraph MLOpsLayer ["The Primer v2: İstemci ONNX Telemetri Katmanı"]
+        Telemetry["Gerçek Zamanlı Telemetri Toplayıcı:<br/>• karar_suresi_sn<br/>• secim_degistirme_sayisi<br/>• tutor_soru_sayisi<br/>• sahne_no, deneyim_seviyesi"]
+        ONNXInference["ONNX Runtime Web Çıkarımı<br/>p = P(riskli_karar=1)"]
+        EvalGate{"p >= 0.60 mı?<br/>(Bilişsel Yük / Panik)"}
+        ProactiveAlert["Telemetry Uyarısı Aktif:<br/>'Yüksek Risk / Bilişsel Yük'"]
+        ProactiveQuestion["Sokratik Tutor:<br/>Proaktif Yönlendirici Soru Sorar"]
+        
+        Telemetry --> ONNXInference --> EvalGate
+        EvalGate -- "Evet (p >= 0.60)" --> ProactiveAlert --> ProactiveQuestion
+        EvalGate -- "Hayır (p < 0.60)" --> PassThrough["Normal Akış Devam Eder"]
+    end
+
+    D1 -. Telemetri Akışı .-> Telemetry
+
     D1 -- "A veya B Seçimi" --> FB1["Teknik Açıklama Göster:<br/>• Ne oldu?<br/>• Neden oldu?"]
     FB1 --> D2["Karar 2 (Test)<br/>A) Önce kısa test koş<br/>B) Hemen yayına al"]
+    D2 -. Telemetri Akışı .-> Telemetry
 
     D2 -- "A veya B Seçimi" --> FB2["Teknik Açıklama Göster:<br/>• Ne oldu?<br/>• Neden oldu?"]
     FB2 --> D3["Karar 3 (KVKK - Logda hasta adı var)<br/>A) Maskele<br/>B) Ekibe olduğu gibi at"]
+    D3 -. Telemetri Akışı .-> Telemetry
 
     D3 -- "A veya B Seçimi" --> FB3["Teknik Açıklama Göster:<br/>• Ne oldu?<br/>• Neden oldu?"]
 
@@ -116,4 +196,5 @@ flowchart TD
     D1 -.-> Ask
     D2 -.-> Ask
     D3 -.-> Ask
+    ProactiveQuestion -.-> Socratic
 ```

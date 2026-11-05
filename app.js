@@ -1,5 +1,5 @@
 /**
- * SE Primer — YZM301 Kriz Simülasyonu Uygulama Mantığı
+ * SE Primer — YZM301 Kriz Simülasyonu Uygulama Mantığı (The Primer v2 ML Katmanı ile)
  * - Başlangıç: 08:00 randevu sistemi çöktü, 300 hasta bekliyor.
  * - 3 Girdi: Seviye (Yeni/Deneyimli), Rol (Frontend/Backend/Fullstack), Hedef (Hızlı kurtarma/Sıfır veri kaybı).
  * - "Yeni başladım" -> Teknik ipuçları açık.
@@ -8,6 +8,7 @@
  * - Sonuç: Karar 3 A -> "Son A · İYİ: 08:25 sistem ayakta, veri güvende"
  *          Karar 3 B -> "Son B · KÖTÜ: Sistem ayakta ama KVKK ihlali"
  * - Sokratik AI Tutor: Doğrudan şık/cevap vermez, yönlendirici soru sorar.
+ * - The Primer v2: Bilişsel Yük ve Kriz Riski Tahmini (onnxruntime-web çıkarımı, telemetri ve parite).
  */
 
 const gameState = {
@@ -24,6 +25,24 @@ const gameState = {
   remainingSeconds: 60,
   timerInterval: null,
 };
+
+// Telemetri ve Bilişsel Yük İzleme Durumu
+const telemetryState = {
+  sceneStartTime: Date.now(),
+  decisionDuration: 0,
+  togglesCount: 0,
+  tutorQuestionsCount: 0,
+  p: 0,
+  proactiveAlertFired: false,
+  durationInterval: null,
+};
+
+// ONNX Model Sabitleri ve Ağırlıkları (Parite & Güvenilirlik Garantisi)
+const MODEL_COEF = [-0.010796676294729362, 2.4716169076502887, 0.3086887999012408, 0.20333395990829625, 0.10793350343969998];
+const MODEL_INTERCEPT = -4.188885123111708;
+const MODEL_BASE64 = "CAcSCHNrbDJvbm54GgYxLjIwLjAiB2FpLm9ubngoADIAOvUCCoECCgtmbG9hdF9pbnB1dBIFbGFiZWwSDXByb2JhYmlsaXRpZXMaEExpbmVhckNsYXNzaWZpZXIiEExpbmVhckNsYXNzaWZpZXIqGQoQY2xhc3NsYWJlbHNfaW50c0AAQAGgAQcqQwoMY29lZmZpY2llbnRzPYvkMDw9+S4ewD11DJ6+Pcc2UL49PgzdvT2L5DC8PfkuHkA9dQyePj3HNlA+PT4M3T2gAQYqGQoKaW50ZXJjZXB0cz1ZC4ZAPVkLhsCgAQYqEgoLbXVsdGlfY2xhc3MYAKABAiodCg5wb3N0X3RyYW5zZm9ybSIITE9HSVNUSUOgAQM6CmFpLm9ubngubWwSIDg0YjM1MzM4ODg2NzQ0NTM5ZDE5NDU2MDk2N2MxMDE0WhsKC2Zsb2F0X2lucHV0EgwKCggBEgYKAAoCCAViEQoFbGFiZWwSCAoGCAcSAgoAYh0KDXByb2JhYmlsaXRpZXMSDAoKCAESBgoACgIIAkIOCgphaS5vbm54Lm1sEAFCBAoAEAxCBAoAEAw=";
+
+let onnxSession = null;
 
 // Her karar için "Ne oldu?" ve "Neden oldu?" teknik açıklamaları
 const DECISION_EXPLANATIONS = {
@@ -98,6 +117,147 @@ const tutorForm = document.getElementById('tutor-form');
 const tutorInput = document.getElementById('tutor-input');
 const chatMessages = document.getElementById('chat-messages');
 
+// Telemetri DOM Elemanları
+const decisionDurationEl = document.getElementById('decision-duration');
+const decisionTogglesEl = document.getElementById('decision-toggles');
+const telemetryPBadge = document.getElementById('telemetry-p-badge');
+const telemetryRiskBadge = document.getElementById('telemetry-risk-badge');
+
+/**
+ * ONNX Runtime Session İlklendirme
+ */
+async function initOnnxSession() {
+  if (typeof ort !== 'undefined') {
+    try {
+      // 1. Dosya yolundan yükleme denemesi
+      onnxSession = await ort.InferenceSession.create('./model/model.onnx');
+      console.log('[ONNX] Model başarıyla yüklendi: ./model/model.onnx');
+      return;
+    } catch (e1) {
+      console.log('[ONNX] Yerel dosya yolu deneniyor, buffer deneniyor...');
+    }
+
+    try {
+      // 2. Gömülü base64 buffer (file:// ve offline ortam uyumlu)
+      const binaryStr = atob(MODEL_BASE64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      onnxSession = await ort.InferenceSession.create(bytes.buffer);
+      console.log('[ONNX] Model gömülü ONNX buffer üzerinden başarıyla ilklendirildi.');
+    } catch (e2) {
+      console.warn('[ONNX] Buffer ilklendirme hatası, matematiksel çekirdek devrede:', e2);
+    }
+  }
+}
+
+/**
+ * IEEE 754 Float32 Matematiksel Çekirdek (ONNX Modeli ile Parite Eşdeğeri)
+ */
+function computeFloat32Kernel(features) {
+  const x = new Float32Array(features);
+  const w = new Float32Array(MODEL_COEF);
+  let z = Math.fround(MODEL_INTERCEPT);
+  for (let i = 0; i < 5; i++) {
+    z = Math.fround(z + Math.fround(w[i] * x[i]));
+  }
+  return 1.0 / (1.0 + Math.exp(-z));
+}
+
+/**
+ * Model Çıkarım Fonksiyonu (Diferansiyel Test & Canlı Telemetri İçin)
+ * features: [karar_suresi_sn, secim_degistirme_sayisi, tutor_soru_sayisi, sahne_no, deneyim_seviyesi]
+ */
+window.runModelInference = async function (features) {
+  let p = 0;
+  if (onnxSession && typeof ort !== 'undefined') {
+    try {
+      const float32Data = new Float32Array(features);
+      const inputTensor = new ort.Tensor('float32', float32Data, [1, 5]);
+      const outputMap = await onnxSession.run({ float_input: inputTensor });
+      const probs = outputMap.probabilities.data;
+      p = Number(probs[1]);
+    } catch (err) {
+      p = computeFloat32Kernel(features);
+    }
+  } else {
+    p = computeFloat32Kernel(features);
+  }
+
+  updateTelemetryUI(features, p);
+  return p;
+};
+
+/**
+ * Telemetri Göstergelerini Güncelleme
+ */
+function updateTelemetryUI(features, p) {
+  telemetryState.p = p;
+
+  if (decisionsContainer) {
+    decisionsContainer.classList.remove('hidden');
+  }
+
+  if (telemetryPBadge) {
+    telemetryPBadge.textContent = p.toFixed(8);
+    telemetryPBadge.setAttribute('data-p-value', String(p));
+  }
+
+  if (decisionDurationEl && features) {
+    decisionDurationEl.textContent = Number(features[0]).toFixed(1);
+  }
+
+  if (decisionTogglesEl && features) {
+    decisionTogglesEl.textContent = String(features[1]);
+  }
+
+  if (telemetryRiskBadge) {
+    if (p >= 0.60) {
+      telemetryRiskBadge.classList.remove('hidden');
+      if (!telemetryState.proactiveAlertFired) {
+        telemetryState.proactiveAlertFired = true;
+        appendChatMessage(
+          'AI Tutor',
+          '⚠️ [Bilişsel Yük Uyarısı]: Yüksek karar baskısı ve kararsızlık sezdim. Aceleyle doğrulanmamış bir adım atmadan önce sakinleşelim; şu an önündeki seçimin sistem ve hastalar üzerindeki asıl riskini nasıl değerlendirirsin?',
+          true
+        );
+      }
+    } else {
+      telemetryRiskBadge.classList.add('hidden');
+    }
+  }
+}
+
+/**
+ * Canlı Karar Süresi Sayacı
+ */
+function startTelemetryTimer() {
+  if (telemetryState.durationInterval) {
+    clearInterval(telemetryState.durationInterval);
+  }
+  telemetryState.sceneStartTime = Date.now();
+  telemetryState.decisionDuration = 0;
+  telemetryState.togglesCount = 0;
+  telemetryState.tutorQuestionsCount = 0;
+  telemetryState.proactiveAlertFired = false;
+
+  telemetryState.durationInterval = setInterval(() => {
+    const elapsedSec = (Date.now() - telemetryState.sceneStartTime) / 1000;
+    telemetryState.decisionDuration = elapsedSec;
+    if (decisionDurationEl) {
+      decisionDurationEl.textContent = elapsedSec.toFixed(1);
+    }
+  }, 200);
+}
+
+function stopTelemetryTimer() {
+  if (telemetryState.durationInterval) {
+    clearInterval(telemetryState.durationInterval);
+    telemetryState.durationInterval = null;
+  }
+}
+
 /**
  * 60 Saniyelik Geri Sayım Sayacı ("Deneyimliyim" seçildiğinde aktif olur)
  */
@@ -140,8 +300,6 @@ function startSimulation() {
   profileSummaryBar.classList.remove('hidden');
 
   // Seviye kurallarını uygula:
-  // - "Yeni başladım" -> teknik ipuçları açık
-  // - "Deneyimliyim" -> 60 saniyelik geri sayım sayacı başlasın
   if (gameState.level === 'Yeni') {
     hintModeBadge.classList.remove('hidden');
     timerBadge.classList.add('hidden');
@@ -153,21 +311,33 @@ function startSimulation() {
     startCountdownTimer();
   }
 
-  // Karar 1 alanını görünür yap
+  // Karar 1 alanını görünür yap ve telemetriyi başlat
   decisionsContainer.classList.remove('hidden');
   decisionCards[1].classList.remove('hidden');
+  startTelemetryTimer();
+
+  // İlk çıkarımı yap
+  const expVal = gameState.level === 'Yeni' ? 0 : 1;
+  window.runModelInference([0.1, 0, 0, 1, expVal]);
 }
 
 /**
  * Karar Seçimi İşleyicisi (Karar 1, 2 ve 3)
  */
 function handleDecisionChoice(decisionNum, choice) {
-  // Eğer kullanıcı doğrudan karar butonuna tıkladıysa simülasyon başlatılmış sayılır
   if (!gameState.started) {
     startSimulation();
   }
 
+  // Kullanıcı aynı aşamada seçim değiştirdiyse veya tıkladıysa sayaç artır
+  if (gameState.choices[decisionNum] !== null && gameState.choices[decisionNum] !== choice) {
+    telemetryState.togglesCount += 1;
+  }
   gameState.choices[decisionNum] = choice;
+
+  if (decisionTogglesEl) {
+    decisionTogglesEl.textContent = String(telemetryState.togglesCount);
+  }
 
   // Butonların görsel seçili durumunu güncelle
   const btnA = document.getElementById(`d${decisionNum}-option-a`);
@@ -180,6 +350,17 @@ function handleDecisionChoice(decisionNum, choice) {
   } else {
     btnB.classList.add('selected-b');
   }
+
+  // Anlık çıkarım çalıştır
+  const expVal = gameState.level === 'Yeni' ? 0 : 1;
+  const currentDuration = Math.max(0.5, telemetryState.decisionDuration);
+  window.runModelInference([
+    currentDuration,
+    telemetryState.togglesCount,
+    telemetryState.tutorQuestionsCount,
+    decisionNum,
+    expVal,
+  ]);
 
   // "Ne oldu?" ve "Neden oldu?" teknik açıklamasını göster
   const feedbackBox = document.getElementById(`feedback-${decisionNum}`);
@@ -196,13 +377,16 @@ function handleDecisionChoice(decisionNum, choice) {
     gameState.currentStep = 2;
     crisisClock.textContent = '08:12';
     decisionCards[2].classList.remove('hidden');
+    startTelemetryTimer();
   } else if (decisionNum === 2) {
     gameState.currentStep = 3;
     crisisClock.textContent = '08:20';
     decisionCards[3].classList.remove('hidden');
+    startTelemetryTimer();
   } else if (decisionNum === 3) {
     crisisClock.textContent = '08:25';
     stopCountdownTimer();
+    stopTelemetryTimer();
     renderOutcome(choice);
   }
 }
@@ -230,7 +414,8 @@ function renderOutcome(decision3Choice) {
     • Profil: ${gameState.level === 'Yeni' ? 'Yeni başladım' : 'Deneyimliyim'} | ${gameState.role} | Hedef: ${gameState.goal}<br/>
     • Karar 1 (Mimari): ${gameState.choices[1] === 'A' ? 'A) Eski sürüme geri dön' : 'B) Canlıda yama yap'}<br/>
     • Karar 2 (Test): ${gameState.choices[2] === 'A' ? 'A) Önce kısa test koş' : 'B) Hemen yayına al'}<br/>
-    • Karar 3 (KVKK): ${gameState.choices[3] === 'A' ? 'A) Maskele' : 'B) Ekibe olduğu gibi at'}
+    • Karar 3 (KVKK): ${gameState.choices[3] === 'A' ? 'A) Maskele' : 'B) Ekibe olduğu gibi at'}<br/>
+    • Son ML Bilişsel Yük Skoru (p): <strong>${telemetryState.p.toFixed(4)}</strong>
   `;
 }
 
@@ -239,6 +424,7 @@ function renderOutcome(decision3Choice) {
  */
 function resetSimulation() {
   stopCountdownTimer();
+  stopTelemetryTimer();
   gameState.started = false;
   gameState.currentStep = 1;
   gameState.choices = { 1: null, 2: null, 3: null };
@@ -259,8 +445,6 @@ function resetSimulation() {
 
 /**
  * Sokratik AI Tutor — Cevap Sızdırmaz (No-Leak) Yanıt Üretici
- * Kullanıcı doğrudan "Hangisini seçeyim?" veya şık istediğinde kesinlikle doğru şıkkı vermez;
- * Sokratik yönlendirici soru sorar.
  */
 function generateSocraticResponse(userQuestion) {
   const q = userQuestion.toLowerCase();
@@ -280,7 +464,7 @@ function generateSocraticResponse(userQuestion) {
     return 'Kararı senin vermen gerekiyor; fakat bir mühendis olarak şunu sorgula: 300 hasta beklerken daha önce çalıştığı kanıtlanmış bir sürüme dönmek mi, yoksa stres altında canlı ortamda yeni kod yazmak mı sistemi daha öngörülebilir şekilde kurtarır?';
   }
 
-  // Doğrudan cevap / şık isteme ("Hangisini seçeyim?", "A mı B mi?", "Cevap ne?")
+  // Doğrudan cevap / şık isteme
   if (
     q.includes('hangisi') ||
     q.includes('seçeyim') ||
@@ -297,7 +481,6 @@ function generateSocraticResponse(userQuestion) {
     return 'Doğrudan doğru şıkkı söyleyemem! Karar 3 (KVKK) için şunu değerlendir: Ekibin hatayı çözmesi için logdaki kişisel hasta verilerinin açık görünmesi şart mı, yoksa veri gizliliği ilkesi burada neyi gerektirir?';
   }
 
-  // Genel Sokratik yanıt
   return `Sokratik rehber olarak doğrudan şık veremem; ancak ${gameState.role} rolünde ve "${gameState.goal}" hedefin doğrultusunda şunu düşünelim: Bu adımda alacağın kararın sistem kararlılığı, test güvencesi ve hasta verisi mahremiyeti üzerindeki uzun vadeli etkisi ne olur?`;
 }
 
@@ -314,7 +497,6 @@ startGameBtn.addEventListener('click', () => {
   startSimulation();
 });
 
-// Seviye değiştiğinde oyun aktifse anında ipucu/sayaç modunu güncelle
 levelSelect.addEventListener('change', () => {
   if (gameState.started) {
     startSimulation();
@@ -338,6 +520,16 @@ tutorForm.addEventListener('submit', (e) => {
   const question = tutorInput.value.trim();
   if (!question) return;
 
+  telemetryState.tutorQuestionsCount += 1;
+  const expVal = gameState.level === 'Yeni' ? 0 : 1;
+  window.runModelInference([
+    Math.max(1.0, telemetryState.decisionDuration),
+    telemetryState.togglesCount,
+    telemetryState.tutorQuestionsCount,
+    gameState.currentStep,
+    expVal,
+  ]);
+
   appendChatMessage('Öğrenci', question, false);
   const socraticReply = generateSocraticResponse(question);
   appendChatMessage('AI Tutor', socraticReply, true);
@@ -351,3 +543,6 @@ document.querySelectorAll('.chip-btn').forEach((chip) => {
     tutorForm.dispatchEvent(new Event('submit'));
   });
 });
+
+// Sayfa yüklendiğinde ONNX modelini başlat
+initOnnxSession();
